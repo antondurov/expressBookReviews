@@ -30,8 +30,7 @@ public_users.post("/register", (req,res) => {
 // Get the book list available in the shop
 public_users.get('/', async function (req, res) {
     try {
-      // In a real scenario, you would fetch from an external API or DB
-      // Here we wrap the logic in a Promise to demonstrate the async requirement
+
       const getBooks = () => {
         return new Promise((resolve, reject) => {
           if (books) {
@@ -51,56 +50,101 @@ public_users.get('/', async function (req, res) {
   });
 
 // Get book details based on ISBN
-public_users.get('/isbn/:isbn',function (req, res) {
-  //Write your code here
-  let isbn = req.params.isbn;
-  return res.status(200).send(JSON.stringify(books[isbn], null, 4));
- });
+public_users.get('/isbn/:isbn', function (req, res) {
+    const isbn = req.params.isbn;
+
+    const findBookByISBN = new Promise((resolve, reject) => {
+        const book = books[isbn];
+        if (book) {
+            resolve(book);
+        } else {
+            reject({ status: 404, message: "Book not found" });
+        }
+    });
+
+    findBookByISBN
+        .then((book) => {
+            res.status(200).send(JSON.stringify(book, null, 4));
+        })
+        .catch((error) => {
+            res.status(error.status || 500).json({ message: error.message });
+        });
+});
   
 // Get book details based on author
-public_users.get('/author/:author',function (req, res) {
-  //Write your code here
-  let author = req.params.author;
-  let bookKeys = Object.keys(books);
-  let results = [];
+public_users.get('/author/:author', async function (req, res) {
+    const author = req.params.author;
 
-  bookKeys.forEach((key) => {
-    if (books[key].author === author) {
-        results.push({
-            isbn: key,
-            title: books[key].title,
-            reviews: books[key].reviews,
-        });
+    try {
+        const findBooksByAuthor = () => {
+            return new Promise((resolve, reject) => {
+                let bookKeys = Object.keys(books);
+                let results = [];
+
+                bookKeys.forEach((key) => {
+                    if (books[key].author === author) {
+                        results.push({
+                            isbn: key,
+                            title: books[key].title,
+                            reviews: books[key].reviews,
+                        });
+                    }
+                });
+
+                if (results.length > 0) {
+                    resolve(results);
+                } else {
+                    reject("No books found for this author");
+                }
+            });
+        };
+
+        const filteredBooks = await findBooksByAuthor();
+        return res.status(200).send(JSON.stringify(filteredBooks, null, 4));
+
+    } catch (error) {
+        return res.status(404).json({ message: error });
     }
-  });
-  if (results.length > 0) {
-    return res.status(200).send(JSON.stringify(results, null, 4));
-  }
-  return res.status(404).json({message: "No books found for this author"});
 });
 
 // Get all books based on title
-public_users.get('/title/:title',function (req, res) {
-  //Write your code here
-  let title = req.params.title.trim().toLowerCase();
-  let bookKeys = Object.keys(books);
-  let results = [];
-
-  bookKeys.forEach((key) => {
-    if (books[key].title.toLowerCase() === title) {
-        results.push({
-            isbn: key,
-            author: books[key].author,
-            title: books[key].title.trim(),
-            reviews: books[key].reviews,
+public_users.get('/title/:title', async function (req, res) {
+    const title = req.params.title.toLowerCase();
+  
+    try {
+      // Wrapping the search logic in a Promise to simulate async behavior
+      const findBooksByTitle = () => {
+        return new Promise((resolve, reject) => {
+          let bookKeys = Object.keys(books);
+          let results = [];
+  
+          bookKeys.forEach((key) => {
+            if (books[key].title.toLowerCase() === title) {
+              results.push({
+                isbn: key,
+                author: books[key].author,
+                reviews: books[key].reviews
+              });
+            }
+          });
+  
+          if (results.length > 0) {
+            resolve(results);
+          } else {
+            reject("No books found with this title");
+          }
         });
+      };
+  
+      // Wait for the Promise to resolve
+      const bookDetails = await findBooksByTitle();
+      return res.status(200).send(JSON.stringify(bookDetails, null, 4));
+  
+    } catch (error) {
+      // Handle the case where the Promise is rejected
+      return res.status(404).json({ message: error });
     }
   });
-  if (results.length > 0) {
-    return res.status(200).send(JSON.stringify(results, null, 4));
-  }
-  return res.status(404).json({message: "No books found for this title"});
-});
 
 //  Get book review
 public_users.get('/review/:isbn',function (req, res) {
